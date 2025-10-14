@@ -1,0 +1,14 @@
+artifact_uri: file:///C:/PythonProjects/Project01/mlruns/222450339919689852/532aaa354795418da1bc8e9bc9d9879b/artifacts
+end_time: 1760375409285
+entry_point_name: ''
+experiment_id: '222450339919689852'
+lifecycle_stage: active
+run_id: 532aaa354795418da1bc8e9bc9d9879b
+run_name: l4_exercise_02
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1760374375512
+status: 3
+tags: []
+user_id: brian.westerman
