@@ -1,0 +1,207 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "c33f1211",
+   "metadata": {},
+   "source": [
+    "## The HealthBot Prototype\n",
+    "Your task is to create a LangGraph-based workflow for the HealthBot that includes the following functionality:\n",
+    "\n",
+    "Ask the patient what health topic or medical condition they'd like to learn about.  \n",
+    "Use the Tavily search engine (via LangChain community tool) to find relevant, up-to-date medical information on the topic.  \n",
+    "Summarize the Tavily search results into a patient-friendly explanation.  \n",
+    "Present the summarized information to the patient and allow them to read it.  \n",
+    "Prompt the patient to indicate when they're ready for a comprehension check.  \n",
+    "Generate a single, relevant quiz question based on the provided information.  \n",
+    "Present the quiz question to the patient.  \n",
+    "Allow the patient to enter their answer to the quiz question.  \n",
+    "Evaluate the patient's response, providing a grade and explanation. The explanation should include relevant citations from the summary to reinforce learning.  \n",
+    "Present the grade and explanation to the patient.  \n",
+    "Ask if the patient would like to learn about another health topic or exit the session.  \n",
+    "Either restart the flow for a new topic or end the session. Ensure that the state is reset when starting a new topic to maintain privacy and accuracy."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "f3e5452a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# import libs\n",
+    "import time\n",
+    "from langgraph.graph import MessagesState, START, StateGraph, END\n",
+    "from langchain_openai import ChatOpenAI\n",
+    "from langgraph.checkpoint.memory import MemorySaver\n",
+    "from langchain_core.runnables import RunnableConfig\n",
+    "\n",
+    "from IPython.display import Image, display"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "637eddbf",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# define llm, State and helper functions\n",
+    "def display_text_to_user(text):\n",
+    "    print(text)\n",
+    "    time.sleep(1) # wait for it to render before asking for input or it'll never show up.\n",
+    "\n",
+    "def ask_user_for_input(input_description):\n",
+    "    response = input(input_description)\n",
+    "    return response\n",
+    "\n",
+    "class State(MessagesState):\n",
+    "    topic: str\n",
+    "    tavily_raw: str\n",
+    "    summary: str\n",
+    "    question: str\n",
+    "    answer: str\n",
+    "    marking: str\n",
+    "\n",
+    "model = ChatOpenAI(temperature=0, streaming=True)\n",
+    "workflow = StateGraph(State)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "813041e6",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# define nodes\n",
+    "\n",
+    "def ask_for_topic(state):\n",
+    "    # welcome and prompt for topic\n",
+    "    # save topic\n",
+    "\n",
+    "def tavily_searches_topic():\n",
+    "    # tavily searches for topic\n",
+    "    # saves results to tavily_raw\n",
+    "\n",
+    "def summary_of_topic():\n",
+    "    # llm summarises (save to summary), writes question (save to question)\n",
+    "    # print summary, pause for Y showing ready to continue\n",
+    "\n",
+    "def ask_a_question():\n",
+    "    # print question and wait for response\n",
+    "    # save answer\n",
+    "\n",
+    "def mark_the_answer():\n",
+    "    # llm compares question and user answer\n",
+    "    # writes response with \"correct!\", \"ooh, not quite!\" and commentary\n",
+    "    # save to marking\n",
+    "\n",
+    "def restart_or_quit():\n",
+    "    # ask Y/N do you want to ask another Q?\n",
+    "    # reset state\n",
+    "    # conditional paths to end/ask_for_topic\n",
+    "\n",
+    "memory = MemorySaver()\n",
+    "app = workflow.compile(checkpointer=memory)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "9985f69f",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# define graph - nodes and edges\n",
+    "\n",
+    "workflow.add_node(\"ask_for_topic\", ask_for_topic)\n",
+    "workflow.add_node(\"tavily_searches_topic\", tavily_searches_topic)\n",
+    "workflow.add_node(\"summary_of_topic\", summary_of_topic)\n",
+    "workflow.add_node(\"ask_a_question\", ask_a_question)\n",
+    "workflow.add_node(\"mark_the_answer\", mark_the_answer)\n",
+    "workflow.add_node(\"restart_or_quit\", restart_or_quit)\n",
+    "\n",
+    "workflow.add_edge(START, \"ask_for_topic\")\n",
+    "workflow.add_edge(\"ask_for_topic\", \"tavily_searches_topic\")\n",
+    "workflow.add_edge(\"tavily_searches_topic\", \"summary_of_topic\")\n",
+    "workflow.add_edge(\"summary_of_topic\", \"ask_a_question\")\n",
+    "workflow.add_edge(\"ask_a_question\", \"mark_the_answer\")\n",
+    "workflow.add_edge(\"mark_the_answer\", \"restart_or_quit\")\n",
+    "workflow.add_conditional_edges(\"restart_or_quit\", END)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "5faa64a4",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# show graph\n",
+    "\n",
+    "display(Image(app.get_graph().draw_mermaid_png()))\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "f7473d36",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# config, initial state\n",
+    "\n",
+    "config = RunnableConfig(recursion_limit=2000, configurable={\"thread_id\": \"2\"})\n",
+    "\n",
+    "\n",
+    "initial_state = {\"messages\": [],}"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "12a7afe5",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# run it\n",
+    "\n",
+    "app.invoke(\n",
+    "    initial_state,\n",
+    "    config,\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "84dd38e6",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": ".venv",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.13.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
